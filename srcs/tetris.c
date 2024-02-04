@@ -1,13 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <sys/time.h>
-#include <ncurses.h>
-
-#define R 20
-#define C 15
-#define T 1
-#define F 0
+#include "tetris.h"
 
 char Table[R][C] = {0};
 int final = 0;
@@ -15,10 +6,6 @@ char GameOn = T;
 suseconds_t timer = 400000;
 int decrease = 1000;
 
-typedef struct {
-    char **array;
-    int width, row, col;
-} Struct;
 Struct current;
 
 const Struct StructsArray[7]= {
@@ -61,7 +48,7 @@ int FunctionCP(Struct shape){
 			if((shape.col+j < 0 || shape.col+j >= C || shape.row+i >= R)){
 				if(array[i][j])
 					return F;
-				
+
 			}
 			else if(Table[shape.row+i][shape.col+j] && array[i][j])
 				return F;
@@ -269,4 +256,10 @@ int main() {
 	printf("\nGame over!\n");
 	printf("\nScore: %d\n", final);
     return 0;
+}
+
+__attribute__((destructor))
+static void	destructor(void)
+{
+	system("leaks -q tetris");
 }

@@ -1,4 +1,7 @@
 *.o
 *.a
+*.d
+.DS_Store
 tetris
 objs/
+deps/
