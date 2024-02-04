@@ -15,10 +15,7 @@ INCDIR := incs
 INCPATH := -I./$(INCDIR)
 
 DEPDIR := objs/
-# DEPDIR := deps/
 DEPS := $(OBJS:$(OBJDIR)%.o=$(DEPDIR)%.d)
-# DEPS := $(OBJS:$(OBJDIR)%.o=$(OBJDIR)%.d)
-# DEPS := $(OBJS:$(OBJDIR)%.o=$(DEPDIR)%.d)
 
 RM := rm -rf
 MKDIR := mkdir -p

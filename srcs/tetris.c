@@ -1,180 +1,226 @@
-#include "tetris.h"
+#include "../incs/tetris.h"
 
-char Table[R][C] = {0};
-int final = 0;
-char GameOn = T;
-suseconds_t timer = 400000;
-int decrease = 1000;
+char		g_table[HEIGHT][WIDTH] = {{0}};
+int			g_current_score = 0;
+char		g_game_end_flag = TRUE;
+suseconds_t	g_span_time = INITIAL_SPAN_TIME;
+int			g_decrease = INITIAL_DECREASE_TIME;
 
-Struct current;
+t_shape current_shape;
 
-const Struct StructsArray[7]= {
-	{(char *[]){(char []){0,1,1},(char []){1,1,0}, (char []){0,0,0}}, 3},
-	{(char *[]){(char []){1,1,0},(char []){0,1,1}, (char []){0,0,0}}, 3},
-	{(char *[]){(char []){0,1,0},(char []){1,1,1}, (char []){0,0,0}}, 3},
-	{(char *[]){(char []){0,0,1},(char []){1,1,1}, (char []){0,0,0}}, 3},
-	{(char *[]){(char []){1,0,0},(char []){1,1,1}, (char []){0,0,0}}, 3},
-	{(char *[]){(char []){1,1},(char []){1,1}}, 2},
-	{(char *[]){(char []){0,0,0,0}, (char []){1,1,1,1}, (char []){0,0,0,0}, (char []){0,0,0,0}}, 4}
+const t_shape	mino_array[NUM_OF_MINOS_TYPES] = {
+	{(char *[]){(char []){0, 1, 1}, (char []){1, 1, 0}, (char []){0, 0, 0}}, 3, 0, 0},
+	{(char *[]){(char []){1, 1, 0}, (char []){0, 1, 1}, (char []){0, 0, 0}}, 3, 0, 0},
+	{(char *[]){(char []){0, 1, 0}, (char []){1, 1, 1}, (char []){0, 0, 0}}, 3, 0, 0},
+	{(char *[]){(char []){0, 0, 1}, (char []){1, 1, 1}, (char []){0, 0, 0}}, 3, 0, 0},
+	{(char *[]){(char []){1, 0, 0}, (char []){1, 1, 1}, (char []){0, 0, 0}}, 3, 0, 0},
+	{(char *[]){(char []){1, 1}, (char []){1, 1}}, 2, 0, 0},
+	{(char *[]){(char []){0, 0, 0, 0}, (char []){1, 1, 1, 1}, (char []){0, 0, 0, 0}, (char []){0, 0, 0, 0}}, 4, 0, 0}
 };
 
-Struct FunctionCS(Struct shape){
-	Struct new_shape = shape;
-	char **copyshape = shape.array;
-	new_shape.array = (char**)malloc(new_shape.width*sizeof(char*));
-    int i, j;
-    for(i = 0; i < new_shape.width; i++){
-		new_shape.array[i] = (char*)malloc(new_shape.width*sizeof(char));
-		for(j=0; j < new_shape.width; j++) {
+t_shape	FunctionCS(t_shape shape)
+{
+	t_shape	new_shape = shape;
+	char	**copyshape = shape.array;
+	new_shape.array = (char **)malloc(new_shape.width * sizeof(char *));
+	int	i;
+	int	j;
+	for (i = 0; i < new_shape.width; i++)
+	{
+		new_shape.array[i] = (char *)malloc(new_shape.width * sizeof(char));
+		for (j = 0; j < new_shape.width; j++)
+		{
 			new_shape.array[i][j] = copyshape[i][j];
 		}
-    }
-    return new_shape;
+	}
+	return (new_shape);
 }
 
-void FunctionDS(Struct shape){
-    int i;
-    for(i = 0; i < shape.width; i++){
+void	FunctionDS(t_shape shape)
+{
+	int	i;
+	for (i = 0; i < shape.width; i++)
+	{
 		free(shape.array[i]);
-    }
-    free(shape.array);
+	}
+	free(shape.array);
 }
 
-int FunctionCP(Struct shape){
-	char **array = shape.array;
-	int i, j;
-	for(i = 0; i < shape.width;i++) {
-		for(j = 0; j < shape.width ;j++){
-			if((shape.col+j < 0 || shape.col+j >= C || shape.row+i >= R)){
-				if(array[i][j])
-					return F;
+int	FunctionCP(t_shape shape)
+{
+	char	**array = shape.array;
+	int	i;
+	int	j;
+	for (i = 0; i < shape.width; i++)
+	{
+		for (j = 0; j < shape.width; j++)
+		{
+			if ((shape.col + j < 0 || shape.col + j >= WIDTH || shape.row + i >= HEIGHT))
+			{
+				if (array[i][j])
+					return (FALSE);
 
 			}
-			else if(Table[shape.row+i][shape.col+j] && array[i][j])
-				return F;
+			else if (g_table[shape.row + i][shape.col + j] && array[i][j])
+				return (FALSE);
 		}
 	}
-	return T;
+	return (TRUE);
 }
 
-void FunctionRS(Struct shape){
-	Struct temp = FunctionCS(shape);
-	int i, j, k, width;
+void	FunctionRS(t_shape shape)
+{
+	t_shape	temp = FunctionCS(shape);
+	int	i;
+	int	j;
+	int	k;
+	int	width;
 	width = shape.width;
-	for(i = 0; i < width ; i++){
-		for(j = 0, k = width-1; j < width ; j++, k--){
-				shape.array[i][j] = temp.array[k][i];
+	for (i = 0; i < width; i++)
+	{
+		for (j = 0, k = width - 1; j < width; j++, k--)
+		{
+			shape.array[i][j] = temp.array[k][i];
 		}
 	}
 	FunctionDS(temp);
 }
 
-void FunctionPT(){
-	char Buffer[R][C] = {0};
-	int i, j;
-	for(i = 0; i < current.width ;i++){
-		for(j = 0; j < current.width ; j++){
-			if(current.array[i][j])
-				Buffer[current.row+i][current.col+j] = current.array[i][j];
+void	FunctionPT()
+{
+	char	Buffer[HEIGHT][WIDTH] = {{0}};
+	int	i;
+	int	j;
+	for (i = 0; i < current_shape.width; i++)
+	{
+		for (j = 0; j < current_shape.width; j++)
+		{
+			if (current_shape.array[i][j])
+				Buffer[current_shape.row + i][current_shape.col + j] = current_shape.array[i][j];
 		}
 	}
 	clear();
-	for(i=0; i<C-9; i++)
+	for (i = 0; i < WIDTH - 9; i++)
 		printw(" ");
 	printw("42 Tetris\n");
-	for(i = 0; i < R ;i++){
-		for(j = 0; j < C ; j++){
-			printw("%c ", (Table[i][j] + Buffer[i][j])? '#': '.');
+	for (i = 0; i < HEIGHT; i++)
+	{
+		for (j = 0; j < WIDTH; j++)
+		{
+			printw("%c ", (g_table[i][j] + Buffer[i][j])? '#': '.');
 		}
 		printw("\n");
 	}
-	printw("\nScore: %d\n", final);
+	printw("\nScore: %d\n", g_current_score);
 }
 
-struct timeval before_now, now;
-int hasToUpdate(){
-	return ((suseconds_t)(now.tv_sec*1000000 + now.tv_usec) -((suseconds_t)before_now.tv_sec*1000000 + before_now.tv_usec)) > timer;
+struct timeval	now;
+struct timeval	before_now;
+
+int	hasToUpdate(void)
+{
+	suseconds_t	now_time;
+	suseconds_t	before_now_time;
+
+	now_time = now.tv_sec * MILLION + now.tv_usec;
+	before_now_time = before_now.tv_sec * MILLION + before_now.tv_usec;
+	return ((now_time - before_now_time) > g_span_time);
 }
 
-void set_timeout(int time) {
-	time = 1;
-	timeout(1);
+
+void	add_score(int *current_score, int count)
+{
+	*current_score += (WIDTH * 100) * count;
 }
 
-int main() {
-    srand(time(0));
-    final = 0;
-    int c;
-    initscr();
+int	main(void)
+{
+	srand(time(0));
+	g_current_score = 0;
+	int	c;
+	initscr();
 	gettimeofday(&before_now, NULL);
-	set_timeout(1);
-	Struct new_shape = FunctionCS(StructsArray[rand()%7]);
-    new_shape.col = rand()%(C-new_shape.width+1);
-    new_shape.row = 0;
-    FunctionDS(current);
-	current = new_shape;
-	if(!FunctionCP(current)){
-		GameOn = F;
+	timeout(1);
+
+	t_shape	new_shape = FunctionCS(mino_array[rand() % NUM_OF_MINOS_TYPES]);
+	new_shape.col = rand() % (WIDTH - new_shape.width + 1);
+	new_shape.row = 0;
+	FunctionDS(current_shape);
+	current_shape = new_shape;
+	if (!FunctionCP(current_shape))
+	{
+		g_game_end_flag = FALSE;
 	}
-    FunctionPT();
-	while(GameOn){
-		if ((c = getch()) != ERR) {
-			Struct temp = FunctionCS(current);
-			switch(c){
+	FunctionPT();
+	while (g_game_end_flag)
+	{
+		if ((c = getch()) != ERR)
+		{
+			t_shape	temp = FunctionCS(current_shape);
+			switch(c)
+			{
 				case 's':
-					temp.row++;  //move down
-					if(FunctionCP(temp))
-						current.row++;
+					temp.row++;
+					if (FunctionCP(temp))
+						current_shape.row++;
 					else {
-						int i, j;
-						for(i = 0; i < current.width ;i++){
-							for(j = 0; j < current.width ; j++){
-								if(current.array[i][j])
-									Table[current.row+i][current.col+j] = current.array[i][j];
+						int	i;
+						int	j;
+						for (i = 0; i < current_shape.width; i++)
+						{
+							for (j = 0; j < current_shape.width; j++)
+							{
+								if (current_shape.array[i][j])
+									g_table[current_shape.row + i][current_shape.col + j] = current_shape.array[i][j];
 							}
 						}
-						int n, m, sum, count=0;
-						for(n=0;n<R;n++){
+						int	n, m, sum, count = 0;
+						for (n = 0; n < HEIGHT; n++)
+						{
 							sum = 0;
-							for(m=0;m< C;m++) {
-								sum+=Table[n][m];
+							for (m = 0; m < WIDTH; m++)
+							{
+								sum += g_table[n][m];
 							}
-							if(sum==C){
+							if (sum == WIDTH)
+							{
 								count++;
-								int l, k;
-								for(k = n;k >=1;k--)
-									for(l=0;l<C;l++)
-										Table[k][l]=Table[k-1][l];
-								for(l=0;l<C;l++)
-									Table[k][l]=0;
-								timer-=decrease--;
+								int	l;
+								int	k;
+								for (k = n; k >= 1; k--)
+									for (l = 0; l < WIDTH; l++)
+										g_table[k][l] = g_table[k - 1][l];
+								for (l = 0; l < WIDTH; l++)
+									g_table[k][l] = 0;
+								g_span_time -= g_decrease--;
 							}
 						}
-						final += 100*count;
-						Struct new_shape = FunctionCS(StructsArray[rand()%7]);
-						new_shape.col = rand()%(C-new_shape.width+1);
+						add_score(&g_current_score, count);
+						t_shape new_shape = FunctionCS(mino_array[rand() % NUM_OF_MINOS_TYPES]);
+						new_shape.col = rand() % (WIDTH - new_shape.width + 1);
 						new_shape.row = 0;
-						FunctionDS(current);
-						current = new_shape;
-						if(!FunctionCP(current)){
-							GameOn = F;
+						FunctionDS(current_shape);
+						current_shape = new_shape;
+						if (!FunctionCP(current_shape))
+						{
+							g_game_end_flag = FALSE;
 						}
 					}
 					break;
 				case 'd':
 					temp.col++;
-					if(FunctionCP(temp))
-						current.col++;
+					if (FunctionCP(temp))
+						current_shape.col++;
 					break;
 				case 'a':
 					temp.col--;
-					if(FunctionCP(temp))
-						current.col--;
+					if (FunctionCP(temp))
+						current_shape.col--;
 					break;
 				case 'w':
 					FunctionRS(temp);
-					if(FunctionCP(temp))
-						FunctionRS(current);
+					if (FunctionCP(temp))
+						FunctionRS(current_shape);
 					break;
 			}
 			FunctionDS(temp);
@@ -182,61 +228,72 @@ int main() {
 		}
 		gettimeofday(&now, NULL);
 		if (hasToUpdate()) {
-			Struct temp = FunctionCS(current);
-			switch('s'){
+			t_shape	temp = FunctionCS(current_shape);
+			switch('s')
+			{
 				case 's':
 					temp.row++;
-					if(FunctionCP(temp))
-						current.row++;
-					else {
-						int i, j;
-						for(i = 0; i < current.width ;i++){
-							for(j = 0; j < current.width ; j++){
-								if(current.array[i][j])
-									Table[current.row+i][current.col+j] = current.array[i][j];
+					if (FunctionCP(temp))
+						current_shape.row++;
+					else
+					{
+						int	i;
+						int	j;
+						for (i = 0; i < current_shape.width; i++)
+						{
+							for (j = 0; j < current_shape.width; j++)
+							{
+								if (current_shape.array[i][j])
+									g_table[current_shape.row + i][current_shape.col + j] = current_shape.array[i][j];
 							}
 						}
 						int n, m, sum, count=0;
-						for(n=0;n<R;n++){
+						for (n = 0; n < HEIGHT; n++)
+						{
 							sum = 0;
-							for(m=0;m< C;m++) {
-								sum+=Table[n][m];
+							for (m = 0; m < WIDTH; m++)
+							{
+								sum += g_table[n][m];
 							}
-							if(sum==C){
+							if (sum == WIDTH)
+							{
 								count++;
-								int l, k;
-								for(k = n;k >=1;k--)
-									for(l=0;l<C;l++)
-										Table[k][l]=Table[k-1][l];
-								for(l=0;l<C;l++)
-									Table[k][l]=0;
-								timer-=decrease--;
+								int	l;
+								int	k;
+								for (k = n; k >= 1; k--)
+									for (l = 0; l < WIDTH; l++)
+										g_table[k][l]=g_table[k - 1][l];
+								for (l = 0; l < WIDTH; l++)
+									g_table[k][l] = 0;
+								g_span_time -= g_decrease--;
 							}
 						}
-						Struct new_shape = FunctionCS(StructsArray[rand()%7]);
-						new_shape.col = rand()%(C-new_shape.width+1);
+						add_score(&g_current_score, count);
+						t_shape	new_shape = FunctionCS(mino_array[rand() % NUM_OF_MINOS_TYPES]);
+						new_shape.col = rand() % (WIDTH - new_shape.width + 1);
 						new_shape.row = 0;
-						FunctionDS(current);
-						current = new_shape;
-						if(!FunctionCP(current)){
-							GameOn = F;
+						FunctionDS(current_shape);
+						current_shape = new_shape;
+						if (!FunctionCP(current_shape))
+						{
+							g_game_end_flag = FALSE;
 						}
 					}
 					break;
 				case 'd':
 					temp.col++;
-					if(FunctionCP(temp))
-						current.col++;
+					if (FunctionCP(temp))
+						current_shape.col++;
 					break;
 				case 'a':
 					temp.col--;
 					if(FunctionCP(temp))
-						current.col--;
+						current_shape.col--;
 					break;
 				case 'w':
 					FunctionRS(temp);
 					if(FunctionCP(temp))
-						FunctionRS(current);
+						FunctionRS(current_shape);
 					break;
 			}
 			FunctionDS(temp);
@@ -244,18 +301,21 @@ int main() {
 			gettimeofday(&before_now, NULL);
 		}
 	}
-	FunctionDS(current);
+	FunctionDS(current_shape);
 	endwin();
-	int i, j;
-	for(i = 0; i < R ;i++){
-		for(j = 0; j < C ; j++){
-			printf("%c ", Table[i][j] ? '#': '.');
+	int	i;
+	int	j;
+	for (i = 0; i < HEIGHT; i++)
+	{
+		for (j = 0; j < WIDTH; j++)
+		{
+			printf("%c ", g_table[i][j] ? '#' : '.');
 		}
 		printf("\n");
 	}
 	printf("\nGame over!\n");
-	printf("\nScore: %d\n", final);
-    return 0;
+	printf("\nScore: %d\n", g_current_score);
+	return (0);
 }
 
 __attribute__((destructor))
